@@ -1,0 +1,305 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <ctime>
+#include <cstdlib>
+using namespace std;
+
+class Game {
+public:
+	char board[20][20];
+	vector<Ant>ants;
+	vector<Doodlebug>bugs;
+	void intializeBoard() {
+
+		for (int i = 0; i < 20; i++) {
+			for (int j = 0; j < 20; j++) {
+				board[i][j] = { '-' };
+			}
+		}
+
+		srand(time(NULL));
+		for (int i = 1; i <= 105; i++) {
+			int random = rand() % 400;
+			int x = random / 20;
+			int y = random % 20;
+			if (i >= 1 && i <= 100) {
+				ants.push_back(Ant(x, y));
+				board[x][y] = ('o');
+			}
+			if (i >= 101 && i <= 105) {
+				bugs.push_back(Doodlebug(x, y));
+				board[x][y] = ('X');
+			}
+		}
+	}
+	void moveBugs() {
+		for (int i = 0; i < bugs.size(); i++) {
+			bugs[i].move(*this);
+		}
+	}
+	void killAnt(int x, int y) {
+		for (int i = 0; i < ants.size(); i++) {
+			if (ants[i].getX() == x && ants[i].getY() == y) {
+				ants.erase(ants.begin() + i);
+				break;
+			}
+		}
+	}
+	void killBugs() {
+		for (int i = 0; i < bugs.size(); i++) {
+			if (bugs[i].getStarvedTimes() == 3) {
+				bugs.erase(bugs.begin() + i);
+			}
+		}
+	}
+	void moveAnts() {
+		for (int i = 0; i < ants.size(); i++)
+			ants[i].move(*this);
+	}
+	void breed() {
+		for (int i = 0; i < bugs.size(); i++) {
+			int newX, newY;
+			bool canBreed = true;
+			if (bugs[i].getSurvivedTimes() == 8) {
+				bugs[i].breed(*this, newX, newY, canBreed);
+				if (canBreed)
+					bugs.push_back(Doodlebug(newX, newY));
+			}
+		}
+		for (int i = 0; i < ants.size(); i++) {
+			int newX, newY;
+			bool canBreed = true;
+			if (ants[i].getSurvivedTimes() == 3) {
+				ants[i].breed(*this, newX, newY, canBreed);
+				if (canBreed)
+					ants.push_back(Ant(newX, newY));
+			}
+		}
+	}
+	void filloutBoard() {
+		for (int i = 0; i < 20; i++) {
+			for (int j = 0; j < 20; j++) {
+				board[i][j] = { '-' };
+			}
+		}
+		for (int i = 0; i < ants.size(); i++) {
+			board[ants[i].getX()][ants[i].getY()] = 'o';
+		}
+
+		for (int i = 0; i < bugs.size(); i++) {
+			board[bugs[i].getX()][bugs[i].getY()] = 'X';
+		}
+
+	}
+	void printBoard() {
+		for (int i = 0; i < 20; i++) {
+			for (int j = 0; j < 20; j++) {
+				cout << board[i][j] << ' ';
+			}
+			cout << endl;
+		}
+	}
+	bool gameOver() {
+		if (bugs.size() == 0) {
+			cout << "Game Over! Ants won.";
+			return true;
+		}
+		else if (ants.size() == 0) {
+			cout << "Game Over! Doodlebugs won.";
+			return true;
+		}
+		else
+			return false;
+	}
+};
+
+class Organism{
+protected:
+	int xCoordinates;
+	int yCoordinates;
+	int survivedTimes;
+
+public:
+	int getX() { return xCoordinates; }
+	int getY() { return yCoordinates; }
+	int getSurvivedTimes() { return survivedTimes; }
+	bool isClear(Game game, int x, int y) {
+		return x > -1 && x < 20 && y > -1 && y < 20 && game.board[x][y] == '-';
+	}
+	void breed(Game game, int &newX, int &newY, bool &canBreed) {
+		survivedTimes = 0;
+		newX = xCoordinates;
+		newY = yCoordinates;
+		int index = 0;
+		char listOfDirection[4]={' ',' ',' ',' '};
+
+		if (isClear(game, xCoordinates + 1, yCoordinates)) {
+			index++;
+			listOfDirection[index] = 'L';
+		}
+		if (isClear(game, xCoordinates - 1, yCoordinates)) {
+			index++;
+			listOfDirection[index] = 'R';
+		}
+		if (isClear(game, xCoordinates, yCoordinates + 1)) {
+			index++;
+			listOfDirection[index] = 'U';
+		}
+		if (isClear(game, xCoordinates, yCoordinates - 1)) {
+			index++;
+			listOfDirection[index] = 'D';
+		}
+		if (index == 0) {
+			canBreed = false;
+			return;
+		}
+
+		srand(time(NULL));
+		int ramdomIndex = rand() % (index);
+		if (listOfDirection[ramdomIndex] = 'L')
+			newX++;
+		else if (listOfDirection[ramdomIndex] = 'R')
+			newX--;
+		else if (listOfDirection[ramdomIndex] = 'U')
+			newY++;
+		else if (listOfDirection[ramdomIndex] = 'D')
+			newY--;
+
+	}
+	virtual void move() {}
+};
+
+class Doodlebug :public Organism {
+private:
+	int starvedTimes;
+public:
+	Doodlebug(int x, int y) { xCoordinates = x; yCoordinates = y; survivedTimes = 0; starvedTimes = 0; }
+	int getStarvedTimes() { return starvedTimes; }
+	bool hasPrey(Game game, int x, int y) {
+		return game.board[x][y] == 'o';
+	}
+	void move(Game game) {
+		survivedTimes++;
+		int index = 0;
+		char listOfDirections[4]={' ', ' ', ' ', ' '};
+
+		if (hasPrey(game, xCoordinates + 1, yCoordinates)) {
+			listOfDirections[index] = 'L';
+			index++;
+		}
+		if (hasPrey(game, xCoordinates - 1, yCoordinates)) {
+			listOfDirections[index] = 'R';
+			index++;
+		}
+		if (hasPrey(game, xCoordinates, yCoordinates + 1)) {
+			listOfDirections[index] = 'U';
+			index++;
+		}
+		if (hasPrey(game, xCoordinates, yCoordinates - 1)) {
+			listOfDirections[index] = 'D';
+			index++;
+		}
+
+		if (index == 0) {
+			starvedTimes++;                                                      //while no prey around check empty ajecent space 
+			if (isClear(game, xCoordinates + 1, yCoordinates)) {
+				listOfDirections[index] = 'L';
+				index++;
+			}
+			if (isClear(game, xCoordinates - 1, yCoordinates)) {
+				listOfDirections[index] = 'R';
+				index++;
+			}
+			if (isClear(game, xCoordinates, yCoordinates + 1)) {
+				listOfDirections[index] = 'U';
+				index++;
+			}
+			if (isClear(game, xCoordinates, yCoordinates - 1)) {
+				listOfDirections[index] = 'D';
+				index++;
+			}
+		} else {
+			starvedTimes = 0;
+		}
+		if (index == 0)
+			return;
+		
+		srand(time(NULL));
+		int ramdomIndex = rand() % index;                                    //pick a random avalible direction 
+		if (listOfDirections[ramdomIndex] = 'L')
+			xCoordinates++;
+		else if (listOfDirections[ramdomIndex] = 'R')
+			xCoordinates--;
+		else if (listOfDirections[ramdomIndex] = 'U')
+			yCoordinates++;
+		else if (listOfDirections[ramdomIndex] = 'D')
+			yCoordinates--;
+		if (starvedTimes == 0) {
+			game.killAnt(xCoordinates, yCoordinates);
+		}
+	}
+};
+
+class Ant :public Organism {
+public:
+	Ant(int x, int y) { xCoordinates = x; yCoordinates = y; survivedTimes = 0;}
+	void move(Game game) {
+		survivedTimes++;
+		int index = 0;
+		char listOfDirection[4] = { ' ', ' ', ' ', ' ' };
+
+		if (isClear(game, xCoordinates + 1, yCoordinates)) {
+			index++;
+			listOfDirection[index] = 'L';
+		}
+		if (isClear(game, xCoordinates - 1, yCoordinates)) {
+			index++;
+			listOfDirection[index] = 'R';
+		}
+		if (isClear(game, xCoordinates, yCoordinates + 1)) {
+			index++;
+			listOfDirection[index] = 'U';
+		}
+		if (isClear(game, xCoordinates, yCoordinates - 1)) {
+			index++;
+			listOfDirection[index] = 'D';
+		}
+		if (index == 0)
+			return;
+		srand(time(NULL));
+		int ramdomIndex = rand() % index;
+		if (listOfDirection[ramdomIndex]='L')
+			xCoordinates++;
+		else if (listOfDirection[ramdomIndex] = 'R')
+			xCoordinates--;
+		else if (listOfDirection[ramdomIndex] = 'U')
+			yCoordinates++;
+		else if (listOfDirection[ramdomIndex] = 'D')
+			yCoordinates--;
+	}
+};
+
+main() {
+	Game one;
+	int counter=0;
+	
+	one.intializeBoard();
+	cout << "Round: " << counter++ << endl;
+	one.printBoard();
+
+	while (one.gameOver() == false) {
+		cout << "Enter to continue." << endl;
+		cin.ignore();
+		cout << "Round: " << counter++ << endl;
+		one.moveBugs();
+		one.filloutBoard();
+		one.moveAnts();
+		one.filloutBoard();
+		one.breed();
+		one.killBugs();
+		one.filloutBoard();
+		one.printBoard();
+	}
+	
+	return 0;
